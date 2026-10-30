@@ -26,16 +26,17 @@ document/profiles/<account-uuid>/
   [synchronization rules](SyncronizationRules.md) for in-flight work and acknowledgments.
 - Do not open a fake shared account to bypass unfinished authentication.
 
-Credential handling, token lifecycle, and offline account restoration remain
-unresolved. Resolve them before treating account readiness as implemented.
+Credential handling and offline account restoration are implemented separately from
+SQLite; see [authentication](Authentication.md). PECS sessions do not authenticate users.
+Native persistence and switching still require device verification.
 
 ## Existing initializer
 
 The app uses `expo-sqlite` and `expo-file-system`.
 `src/database/database.ts` exposes `initializeDatabase()` and
 `openUserDatabase(userId)`. Pass the verified account UUID returned by Cold API;
-open once and reuse the returned connection. The starter screen is not connected
-to this initializer because authentication/restoration is not implemented.
+open once and reuse the returned connection. The authentication controller connects
+this initializer to successful login/restoration and closes it on logout/account switching.
 
 The initializer normalizes UUIDs, creates persistent profile/custom-image
 directories, and opens a dedicated native connection. It enables WAL and foreign
@@ -83,27 +84,36 @@ await local.database.closeAsync();
   catalog and `source_type`. See [asset rules](AssetsAndDictionaries.md).
 - Update storage documentation and schema tests whenever storage behavior changes.
 
-## Implemented schema versus approved target
+## Current schema
 
-Version 1 has six tables: `sessions`, `event_logs`, `assets`, `asset_settings`,
-`dictionaries`, and `assets_dictionaries`. It reflects an earlier Hot ERD, not
-the latest approved target.
+The initial version 1 schema now defines the five tables in the latest Hot ERD: `sessions`, `event_logs`,
+`assets`, `dictionaries`, and `assets_dictionaries`. It replaces `assets.label`
+with required `default_name`, removes `asset_settings`, adds required
+`dictionary_color`, renames membership `position` to `display_order`, and adds
+nullable event `received_at`. Leave `received_at` NULL until server receipt is known;
+it does not replace pending/acknowledgment tracking.
 
-| Area | Implemented version 1 | Approved target or open decision |
+This is a schema-definition update only, as requested on October 27, 2026.
+The version number is unchanged and no migration is included. Existing databases
+already marked version 1 are not modified by the initializer and will retain
+their earlier structure. A later upgrade requires a versioned migration.
+
+| Area | Earlier initial schema | Current initial schema or remaining decision |
 | --- | --- | --- |
-| Asset labels | `assets.asset_name`, `assets.label`, and nullable `asset_settings.label_override` | Add `default_name` for builtin reset; the editable role of `asset_name` and conversion rules remain unresolved. |
-| Per-asset settings | Unique, required `asset_settings.assetid`; nullable font size and letter spacing | Remove `asset_settings`; label customization remains required. |
-| Dictionary color | Absent | `dictionary_color` is required. |
-| Membership ordering | `assets_dictionaries.position` | Use `display_order`; dictionary tab ordering already uses `dictionaries.display_order`. |
-| Sync bookkeeping | No durable pending/acknowledgment mechanism or local `received_at` | Design bookkeeping; whether to retain returned `received_at` remains unresolved. |
+| Asset labels | `assets.asset_name`, `assets.label`, and nullable `asset_settings.label_override` | `asset_name` and required `default_name`; the editable role of `asset_name` and legacy conversion rules remain unresolved. |
+| Per-asset settings | Unique, required `asset_settings.assetid`; nullable font size and letter spacing | `asset_settings` removed; label customization remains required. |
+| Dictionary color | Absent | Required `dictionary_color`. |
+| Membership ordering | `assets_dictionaries.position` | `display_order`; dictionary tab ordering also uses `dictionaries.display_order`. |
+| Sync bookkeeping | No durable pending/acknowledgment mechanism or local `received_at` | Nullable `received_at` exists; durable bookkeeping remains unresolved. |
 
 Foreign keys prevent deleting referenced parents by default; no cascading history
 deletion is added. Image/history retention and deletion workflows remain open.
 The implemented Hot DB has no event-level `asset_path`. Builtin catalog seeding
 and cloud image uploads are not implemented.
 
-Follow the latest approved Hot ERD and resolve data conversions before migration.
-This documentation does not change the schema. See [implementation status](ImplementationStatus.md).
+Resolve the mapping of legacy `asset_name`, `label`, and `label_override` and the
+color for existing dictionaries before implementing a migration from the earlier schema.
+See [implementation status](ImplementationStatus.md).
 
 ## Native verification
 

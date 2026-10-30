@@ -43,7 +43,8 @@ Discuss these before treating an interpretation as settled:
 
 ## Schema transition
 
-The implemented version 1 still uses `assets.label`, `asset_settings`, and
-membership `position`; it lacks `default_name` and `dictionary_color`. These
-requirements do not constitute a migration. Follow the latest approved Hot ERD
-and resolve conversion semantics before implementing a data-preserving upgrade.
+Fresh databases follow the latest Hot ERD: `default_name` and
+`dictionary_color` are required, membership ordering uses `display_order`, and
+`assets.label` and `asset_settings` are absent. This schema-definition update keeps
+version 1 and includes no migration. Existing databases retain their earlier schema;
+legacy label mapping and dictionary colors need resolution before a later upgrade.

@@ -80,7 +80,9 @@ Playback repetition determines event creation; it is separate from upload retry
 deduplication. Follow [storage rules](sqlite.md) for account isolation and migrations.
 
 Server `received_at` is the first successful storage time and stays unchanged on
-retries. Its possible Hot DB copy does not replace pending/acknowledgment tracking.
+retries. The current Hot DB schema includes a nullable copy as required by the latest ERD;
+it does not replace pending/acknowledgment tracking. Receipt persistence is not
+implemented because synchronization is not implemented.
 
 ## Expected delay and remaining decisions
 
@@ -93,9 +95,9 @@ Before implementation, resolve:
   for mutable records, including changes during an upload.
 - Batch sizes, endpoints/contracts, record dependencies, and partial acceptance.
 - Retry delays/limits, failure classification, and persisted retry state.
-- Account restoration, authentication readiness, and expired-token handling.
+- Integrating the implemented account restoration/readiness flow and handling rejected
+  credentials during synchronization; see [authentication](Authentication.md).
 - PECS session start/end and crash recovery; backgrounding alone does not reliably end a session.
-- Whether Hot DB retains a returned server `received_at`.
 
 Keep these decisions open until explicitly resolved. Design durable bookkeeping,
 batch contracts, and mutation-during-upload handling before claiming reliable sync.

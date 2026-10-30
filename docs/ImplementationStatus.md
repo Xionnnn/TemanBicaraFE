@@ -1,6 +1,7 @@
 # Implementation Status
 
-Inspected October 23, 2026. This is a dated snapshot supporting [AGENTS.md](../AGENTS.md).
+Authentication and entry inspected October 29, 2026; schema alignment dates from
+October 27, 2026. This is a dated snapshot supporting [AGENTS.md](../AGENTS.md).
 Reinspect relevant files before relying on it. These gaps are context, not an
 instruction to implement the backlog. Diagrams and type checking alone do not
 establish feature completion.
@@ -9,10 +10,10 @@ establish feature completion.
 
 | Area | Observed implementation |
 | --- | --- |
-| Application entry | `App.tsx` remains the starter screen. |
-| Navigation and authentication | Expo Router and authentication are not implemented. |
-| Account storage | Per-account initialization exists in `src/database/database.ts`, but is not connected to an authenticated application lifecycle. |
-| Local schema | `src/database/schema.ts` remains at version 1: `asset_settings`, `assets.label`, and membership `position` remain; `default_name` and `dictionary_color` are absent. |
+| Application entry | `index.ts` loads Expo Router; routes are under `src/app/`. |
+| Navigation and authentication | Registration, email verification, login, secure credential persistence, and a blank authenticated route are implemented. See [authentication](Authentication.md) for configuration and verification limits. |
+| Account storage | Authentication restoration opens the UUID-scoped database; logout closes it and preserves account files. Native persistence remains unverified. |
+| Local schema | The initial schema matches the latest Hot ERD. Version 1 is unchanged; no migration is included, so existing databases retain their earlier structure. |
 | Student and teacher features | Builtin catalog seeding, PECS screens, synchronization, and teacher dashboard functionality are not implemented. |
 | Native verification | Filesystem persistence and live account switching have not been verified on Android/iOS. |
 
@@ -21,9 +22,9 @@ opens a dedicated connection, enables WAL/foreign keys, initializes transactiona
 rejects newer schema versions, and closes the connection on initialization failure.
 UUID shape validation does not authenticate the caller.
 
-`scripts/database-schema.test.cjs` contains four desktop SQLite tests for schema
-constraints and dictionary membership. Their existence does not establish native
-correctness; tests were not rerun for this documentation reorganization.
+`scripts/database-schema.test.cjs` covers schema constraints, dictionary membership,
+receipt timestamps, and the Hot ERD table/column set. Desktop tests do not establish
+native correctness or migration readiness.
 
 ## Intended behavior and remaining design
 
@@ -36,5 +37,7 @@ correctness; tests were not rerun for this documentation reorganization.
 - [Synchronization](SyncronizationRules.md): agreed triggers and retries;
   durable bookkeeping, batch contracts, and upload-version handling remain open.
 
-Credential handling, token lifecycle, and offline account restoration remain
-unresolved. Do not infer these from the storage initializer or Supabase hosting.
+Credential handling and offline restoration follow [the approved authentication flow](Authentication.md).
+The Cold API issues persistent credentials and checks `users.auth_version`; no token table
+is used. SMTP/database secrets and native testing are required before claiming live readiness.
+Feature authorization policies and classroom membership enforcement remain deferred.

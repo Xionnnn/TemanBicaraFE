@@ -1,4 +1,3 @@
-// Version 1 follows the agreed Hot DB ERD. Cloud-only fields stay on the server.
 export const DATABASE_VERSION = 1;
 
 export const INITIAL_SCHEMA = `
@@ -18,27 +17,18 @@ export const INITIAL_SCHEMA = `
     payload TEXT NOT NULL CHECK (json_valid(payload)),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    received_at TEXT,
     sessionid TEXT NOT NULL REFERENCES sessions(id)
   );
 
   CREATE TABLE assets (
     id TEXT PRIMARY KEY NOT NULL,
     asset_name TEXT NOT NULL,
-    label TEXT NOT NULL,
+    default_name TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     path TEXT NOT NULL,
     source_type TEXT NOT NULL CHECK (source_type IN ('builtin', 'custom'))
-  );
-
-  CREATE TABLE asset_settings (
-    id TEXT PRIMARY KEY NOT NULL,
-    label_override TEXT,
-    font_size REAL CHECK (font_size IS NULL OR font_size > 0),
-    letter_spacing REAL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    assetid TEXT NOT NULL UNIQUE REFERENCES assets(id)
   );
 
   CREATE TABLE dictionaries (
@@ -46,18 +36,19 @@ export const INITIAL_SCHEMA = `
     dictionary_name TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    display_order INTEGER NOT NULL CHECK (display_order >= 0)
+    display_order INTEGER NOT NULL CHECK (display_order >= 0),
+    dictionary_color TEXT NOT NULL
   );
 
   CREATE TABLE assets_dictionaries (
     assetsid TEXT NOT NULL REFERENCES assets(id),
     dictionariesid TEXT NOT NULL REFERENCES dictionaries(id),
-    position INTEGER NOT NULL CHECK (position >= 0),
+    display_order INTEGER NOT NULL CHECK (display_order >= 0),
     PRIMARY KEY (assetsid, dictionariesid)
   );
 
   CREATE INDEX event_logs_session_created
     ON event_logs(sessionid, created_at);
-  CREATE INDEX assets_dictionaries_dictionary_position
-    ON assets_dictionaries(dictionariesid, position);
+  CREATE INDEX assets_dictionaries_dictionary_display_order
+    ON assets_dictionaries(dictionariesid, display_order);
 `;
