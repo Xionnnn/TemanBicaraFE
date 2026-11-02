@@ -20,7 +20,7 @@ async function request<T>(path: string, body?: unknown, credential?: string, met
   if (__DEV__) {
     console.log('[API request]', { method, url, validHttps: base?.startsWith('https://') ?? false });
   }
-  if (!url || !base?.startsWith('https://')) throw new ApiError(503, {});
+  if (!url || !base?.startsWith('https://') && !base?.startsWith('http://')) throw new ApiError(503, {});
   const abort = new AbortController();
   const timeout = setTimeout(() => abort.abort(), 15000);
   try {

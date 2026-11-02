@@ -1,8 +1,8 @@
 import { Redirect } from 'expo-router';
-import { View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider';
+import { HomeView } from '../components/home/HomeView';
 
-export default function BlankAuthenticatedScreen() {
+export default function HomeScreen() {
   const { snapshot } = useAuth();
-  return snapshot.phase === 'signedIn' ? <View style={{ flex: 1, backgroundColor: '#FAFAFA' }} /> : <Redirect href="/" />;
+  return snapshot.phase === 'signedIn' ? <HomeView /> : <Redirect href="/" />;
 }
