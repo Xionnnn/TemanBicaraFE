@@ -16,15 +16,22 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, body?: unknown, credential?: string, method = 'POST'): Promise<T> {
   const base = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-  if (!base?.startsWith('https://')) throw new ApiError(503, {});
+  const url = base ? `${base}/auth/${path}` : undefined;
+  if (__DEV__) {
+    console.log('[API request]', { method, url, validHttps: base?.startsWith('https://') ?? false });
+  }
+  if (!url || !base?.startsWith('https://')) throw new ApiError(503, {});
   const abort = new AbortController();
   const timeout = setTimeout(() => abort.abort(), 15000);
   try {
-    const response = await fetch(`${base}/auth/${path}`, {
+    const response = await fetch(url, {
       method, signal: abort.signal,
       headers: { 'Content-Type': 'application/json', ...(credential ? { Authorization: `Bearer ${credential}` } : {}) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
+    if (__DEV__) {
+      console.log('[API response]', { method, url, status: response.status });
+    }
     if (response.status === 204) return undefined as T;
     const text = await response.text();
     let result: unknown = {};
