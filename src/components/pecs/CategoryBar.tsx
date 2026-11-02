@@ -1,5 +1,14 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { type ElementRef, useRef, useState } from 'react';
+import {
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { ArrowIcon, PecsPlaceholder } from './PecsIcons';
 import type { PecsCategory } from './types';
 
@@ -9,31 +18,48 @@ type CategoryBarProps = {
   onSelectCategory: (categoryId: string) => void;
 };
 
-const VISIBLE_COUNT = 3;
-
 export function CategoryBar({
   categories,
   selectedCategoryId,
   onSelectCategory,
 }: CategoryBarProps) {
-  const [startIndex, setStartIndex] = useState(0);
+  const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
+  const [scrollX, setScrollX] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  const canGoLeft = startIndex > 0;
-  const canGoRight = startIndex + VISIBLE_COUNT < categories.length;
+  const canGoLeft = scrollX > 4;
+  const canGoRight =
+    containerWidth > 0
+      ? contentWidth > containerWidth + 4 && scrollX < contentWidth - containerWidth - 4
+      : categories.length > 3;
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScrollX(event.nativeEvent.contentOffset.x);
+  };
+
+  const handleContentSizeChange = (width: number) => {
+    setContentWidth(width);
+  };
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setContainerWidth(event.nativeEvent.layout.width);
+  };
 
   const handleLeft = () => {
-    if (canGoLeft) {
-      setStartIndex((prev) => Math.max(0, prev - 1));
-    }
+    if (!canGoLeft) return;
+    const scrollStep = Math.max(90, containerWidth * 0.75);
+    const targetX = Math.max(0, scrollX - scrollStep);
+    scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
   };
 
   const handleRight = () => {
-    if (canGoRight) {
-      setStartIndex((prev) => Math.min(categories.length - VISIBLE_COUNT, prev + 1));
-    }
+    if (!canGoRight) return;
+    const scrollStep = Math.max(90, containerWidth * 0.75);
+    const maxScroll = Math.max(0, contentWidth - containerWidth);
+    const targetX = Math.min(maxScroll, scrollX + scrollStep);
+    scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
   };
-
-  const visibleCategories = categories.slice(startIndex, startIndex + VISIBLE_COUNT);
 
   return (
     <View style={styles.container}>
@@ -41,6 +67,7 @@ export function CategoryBar({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Kamus sebelumnya"
+        accessibilityHint="Menggeser daftar kategori ke kiri"
         accessibilityState={{ disabled: !canGoLeft }}
         disabled={!canGoLeft}
         onPress={handleLeft}
@@ -53,9 +80,21 @@ export function CategoryBar({
         <ArrowIcon direction="left" size={26} color={canGoLeft ? '#111827' : '#9CA3AF'} />
       </Pressable>
 
-      {/* Categories Row */}
-      <View style={styles.categoriesRow}>
-        {visibleCategories.map((cat) => {
+      {/* Categories Horizontal ScrollView */}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
+        onContentSizeChange={handleContentSizeChange}
+        onLayout={handleLayout}
+        style={styles.categoriesScrollView}
+        contentContainerStyle={styles.categoriesContent}
+        accessibilityRole="tablist"
+        accessibilityLabel="Daftar kategori kamus"
+      >
+        {categories.map((cat) => {
           const isSelected = cat.id === selectedCategoryId;
           return (
             <Pressable
@@ -84,12 +123,13 @@ export function CategoryBar({
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Right Paging Arrow */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Kamus berikutnya"
+        accessibilityHint="Menggeser daftar kategori ke kanan"
         accessibilityState={{ disabled: !canGoRight }}
         disabled={!canGoRight}
         onPress={handleRight}
@@ -129,21 +169,24 @@ const styles = StyleSheet.create({
     borderColor: '#374151',
     opacity: 0.5,
   },
-  categoriesRow: {
+  categoriesScrollView: {
     flex: 1,
+    marginHorizontal: 6,
+  },
+  categoriesContent: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 6,
-    gap: 6,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    gap: 8,
   },
   categoryCard: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     borderRadius: 8,
     backgroundColor: 'transparent',
-    minWidth: 70,
+    minWidth: 72,
   },
   categorySelected: {
     backgroundColor: '#4B5563',
