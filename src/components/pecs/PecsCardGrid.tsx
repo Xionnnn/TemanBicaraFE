@@ -18,13 +18,25 @@ type PecsCardGridProps = {
   onSelectCard: (card: PecsCard) => void;
 };
 
-const PAGE_SIZE = 4;
-
 export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
   const [scrollY, setScrollY] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
+
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 600;
+  const numColumns = isTablet ? 4 : 2;
+
+  // Responsive sizing calculations
+  const horizontalPadding = isTablet ? 24 : 16;
+  const gap = isTablet ? 16 : 14;
+  const totalGaps = (numColumns - 1) * gap;
+  const availableWidth = width - horizontalPadding * 2 - totalGaps;
+  const cardWidth = Math.max(80, Math.floor(availableWidth / numColumns));
+  const placeholderSize = Math.min(isTablet ? 135 : 115, Math.floor(cardWidth * 0.7));
+
+  const arrowIconSize = isTablet ? 40 : 36;
 
   // Reset scroll to top whenever the cards list changes (e.g. category changed)
   useEffect(() => {
@@ -50,7 +62,10 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
   };
 
   const handleUp = () => {
-    if (canGoUp) setPage((prev) => Math.max(0, prev - 1));
+    if (!canGoUp) return;
+    const scrollStep = Math.max(160, containerHeight * 0.75);
+    const targetY = Math.max(0, scrollY - scrollStep);
+    scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
   };
 
   const handleDown = () => {
@@ -61,10 +76,9 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
     scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
   };
 
-  // Calculate dynamic card size based on screen width
-  const screenWidth = Dimensions.get('window').width;
-  const cardWidth = Math.floor((screenWidth - 48) / 2);
-  const placeholderSize = Math.min(115, Math.floor(cardWidth * 0.72));
+  // Determine spacers needed for left-aligning the last row
+  const remainder = cards.length % numColumns;
+  const spacerCount = remainder === 0 ? 0 : numColumns - remainder;
 
   return (
     <View
@@ -77,7 +91,8 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
       {/* Top Wide Up Arrow */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Halaman kartu sebelumnya"
+        accessibilityLabel="Kartu sebelumnya"
+        accessibilityHint="Menggeser daftar kartu ke atas"
         accessibilityState={{ disabled: !canGoUp }}
         disabled={!canGoUp}
         onPress={handleUp}
@@ -91,7 +106,7 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
         <ArrowIcon direction="up" size={arrowIconSize} color={canGoUp ? '#111827' : '#9CA3AF'} />
       </Pressable>
 
-      {/* Scrollable 2-column Cards Grid */}
+      {/* Scrollable Responsive Cards Grid */}
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
@@ -100,7 +115,7 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
         onContentSizeChange={handleContentSizeChange}
         onLayout={handleLayout}
         style={styles.gridScrollView}
-        contentContainerStyle={styles.gridContent}
+        contentContainerStyle={[styles.gridContent, { gap }]}
         accessibilityRole="list"
         accessibilityLabel="Daftar kartu PECS"
       >
@@ -113,6 +128,7 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
             onPress={() => onSelectCard(card)}
             style={({ pressed }) => [
               styles.card,
+              isTablet && styles.cardTablet,
               { width: cardWidth },
               pressed && styles.cardPressed,
             ]}
@@ -122,19 +138,27 @@ export function PecsCardGrid({ cards, onSelectCard }: PecsCardGridProps) {
               lineColor="#1F2937"
               backgroundColor="#F3F4F6"
             />
-            <Text numberOfLines={1} style={styles.cardText}>
+            <Text
+              numberOfLines={1}
+              style={[styles.cardText, isTablet && styles.cardTextTablet]}
+            >
               {card.name}
             </Text>
           </Pressable>
         ))}
-        {/* Invisible spacer to keep odd-numbered last card left-aligned */}
-        {cards.length % 2 !== 0 && <View style={{ width: cardWidth }} />}
+
+        {/* Invisible spacers to keep the last row cleanly aligned to the left */}
+        {spacerCount > 0 &&
+          Array.from({ length: spacerCount }).map((_, i) => (
+            <View key={`grid-spacer-${i}`} style={{ width: cardWidth }} />
+          ))}
       </ScrollView>
 
       {/* Bottom Wide Down Arrow */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Halaman kartu berikutnya"
+        accessibilityLabel="Kartu berikutnya"
+        accessibilityHint="Menggeser daftar kartu ke bawah"
         accessibilityState={{ disabled: !canGoDown }}
         disabled={!canGoDown}
         onPress={handleDown}
@@ -156,7 +180,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#3F4940',
     paddingVertical: 12,
-    justifyContent: 'space-between',
   },
   containerTablet: {
     paddingVertical: 14,
@@ -180,11 +203,14 @@ const styles = StyleSheet.create({
     borderColor: '#374151',
     opacity: 0.45,
   },
-  gridContainer: {
+  gridScrollView: {
+    flex: 1,
+    marginVertical: 8,
+  },
+  gridContent: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 16,
     paddingVertical: 4,
   },
   card: {
@@ -197,6 +223,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E5E7EB',
     minHeight: 160,
+  },
+  cardTablet: {
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    minHeight: 180,
   },
   cardPressed: {
     opacity: 0.8,

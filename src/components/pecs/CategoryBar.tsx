@@ -19,14 +19,15 @@ type CategoryBarProps = {
   onSelectCategory: (categoryId: string) => void;
 };
 
-const VISIBLE_COUNT = 3;
-
 export function CategoryBar({
   categories,
   selectedCategoryId,
   onSelectCategory,
 }: CategoryBarProps) {
-  const [startIndex, setStartIndex] = useState(0);
+  const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
+  const [scrollX, setScrollX] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 600;
@@ -80,6 +81,7 @@ export function CategoryBar({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Kamus sebelumnya"
+        accessibilityHint="Menggeser daftar kategori ke kiri"
         accessibilityState={{ disabled: !canGoLeft }}
         disabled={!canGoLeft}
         onPress={handleLeft}
@@ -144,12 +146,13 @@ export function CategoryBar({
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Right Paging Arrow */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Kamus berikutnya"
+        accessibilityHint="Menggeser daftar kategori ke kanan"
         accessibilityState={{ disabled: !canGoRight }}
         disabled={!canGoRight}
         onPress={handleRight}
@@ -199,8 +202,11 @@ const styles = StyleSheet.create({
     borderColor: '#374151',
     opacity: 0.5,
   },
-  categoriesRow: {
+  categoriesScrollView: {
     flex: 1,
+    marginHorizontal: 6,
+  },
+  categoriesContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 4,
@@ -214,7 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     borderRadius: 8,
     backgroundColor: 'transparent',
     minWidth: 72,
