@@ -1,5 +1,15 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { type ElementRef, useRef, useState } from 'react';
+import {
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { ArrowIcon, PecsPlaceholder } from './PecsIcons';
 import type { PecsCategory } from './types';
 
@@ -18,25 +28,54 @@ export function CategoryBar({
 }: CategoryBarProps) {
   const [startIndex, setStartIndex] = useState(0);
 
-  const canGoLeft = startIndex > 0;
-  const canGoRight = startIndex + VISIBLE_COUNT < categories.length;
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 600;
+
+  const arrowIconSize = isTablet ? 32 : 26;
+  const placeholderSize = isTablet ? 54 : 46;
+
+  const visibleEstimate =
+    containerWidth > 0
+      ? Math.floor(containerWidth / (isTablet ? 96 : 80))
+      : isTablet
+      ? 5
+      : 3;
+
+  const canGoLeft = scrollX > 4;
+  const canGoRight =
+    containerWidth > 0
+      ? contentWidth > containerWidth + 4 && scrollX < contentWidth - containerWidth - 4
+      : categories.length > visibleEstimate;
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScrollX(event.nativeEvent.contentOffset.x);
+  };
+
+  const handleContentSizeChange = (contentWidthParam: number) => {
+    setContentWidth(contentWidthParam);
+  };
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setContainerWidth(event.nativeEvent.layout.width);
+  };
 
   const handleLeft = () => {
-    if (canGoLeft) {
-      setStartIndex((prev) => Math.max(0, prev - 1));
-    }
+    if (!canGoLeft) return;
+    const scrollStep = Math.max(isTablet ? 120 : 90, containerWidth * 0.75);
+    const targetX = Math.max(0, scrollX - scrollStep);
+    scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
   };
 
   const handleRight = () => {
-    if (canGoRight) {
-      setStartIndex((prev) => Math.min(categories.length - VISIBLE_COUNT, prev + 1));
-    }
+    if (!canGoRight) return;
+    const scrollStep = Math.max(isTablet ? 120 : 90, containerWidth * 0.75);
+    const maxScroll = Math.max(0, contentWidth - containerWidth);
+    const targetX = Math.min(maxScroll, scrollX + scrollStep);
+    scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
   };
 
-  const visibleCategories = categories.slice(startIndex, startIndex + VISIBLE_COUNT);
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isTablet && styles.containerTablet]}>
       {/* Left Paging Arrow */}
       <Pressable
         accessibilityRole="button"
@@ -46,16 +85,32 @@ export function CategoryBar({
         onPress={handleLeft}
         style={({ pressed }) => [
           styles.arrowButton,
+          isTablet && styles.arrowButtonTablet,
           !canGoLeft && styles.arrowDisabled,
           pressed && canGoLeft && styles.pressed,
         ]}
       >
-        <ArrowIcon direction="left" size={26} color={canGoLeft ? '#111827' : '#9CA3AF'} />
+        <ArrowIcon direction="left" size={arrowIconSize} color={canGoLeft ? '#111827' : '#9CA3AF'} />
       </Pressable>
 
-      {/* Categories Row */}
-      <View style={styles.categoriesRow}>
-        {visibleCategories.map((cat) => {
+      {/* Categories Horizontal ScrollView */}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
+        onContentSizeChange={handleContentSizeChange}
+        onLayout={handleLayout}
+        style={styles.categoriesScrollView}
+        contentContainerStyle={[
+          styles.categoriesContent,
+          isTablet && styles.categoriesContentTablet,
+        ]}
+        accessibilityRole="tablist"
+        accessibilityLabel="Daftar kategori kamus"
+      >
+        {categories.map((cat) => {
           const isSelected = cat.id === selectedCategoryId;
           return (
             <Pressable
@@ -66,18 +121,23 @@ export function CategoryBar({
               onPress={() => onSelectCategory(cat.id)}
               style={({ pressed }) => [
                 styles.categoryCard,
+                isTablet && styles.categoryCardTablet,
                 isSelected && styles.categorySelected,
                 pressed && styles.pressed,
               ]}
             >
               <PecsPlaceholder
-                size={46}
+                size={placeholderSize}
                 lineColor={isSelected ? '#111827' : '#6B7280'}
                 backgroundColor={isSelected ? '#FFFFFF' : '#D1D5DB'}
               />
               <Text
                 numberOfLines={1}
-                style={[styles.categoryLabel, isSelected && styles.categoryLabelSelected]}
+                style={[
+                  styles.categoryLabel,
+                  isTablet && styles.categoryLabelTablet,
+                  isSelected && styles.categoryLabelSelected,
+                ]}
               >
                 {cat.name}
               </Text>
@@ -95,11 +155,12 @@ export function CategoryBar({
         onPress={handleRight}
         style={({ pressed }) => [
           styles.arrowButton,
+          isTablet && styles.arrowButtonTablet,
           !canGoRight && styles.arrowDisabled,
           pressed && canGoRight && styles.pressed,
         ]}
       >
-        <ArrowIcon direction="right" size={26} color={canGoRight ? '#111827' : '#9CA3AF'} />
+        <ArrowIcon direction="right" size={arrowIconSize} color={canGoRight ? '#111827' : '#9CA3AF'} />
       </Pressable>
     </View>
   );
@@ -114,6 +175,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
   },
+  containerTablet: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
   arrowButton: {
     width: 52,
     height: 72,
@@ -124,6 +189,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#9CA3AF',
   },
+  arrowButtonTablet: {
+    width: 60,
+    height: 80,
+    borderRadius: 10,
+  },
   arrowDisabled: {
     backgroundColor: '#4B5563',
     borderColor: '#374151',
@@ -132,9 +202,13 @@ const styles = StyleSheet.create({
   categoriesRow: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 6,
-    gap: 6,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  categoriesContentTablet: {
+    paddingHorizontal: 8,
+    gap: 12,
   },
   categoryCard: {
     alignItems: 'center',
@@ -143,7 +217,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: 8,
     backgroundColor: 'transparent',
-    minWidth: 70,
+    minWidth: 72,
+  },
+  categoryCardTablet: {
+    minWidth: 88,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   categorySelected: {
     backgroundColor: '#4B5563',
@@ -156,6 +235,10 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
     marginTop: 4,
     textAlign: 'center',
+  },
+  categoryLabelTablet: {
+    fontSize: 14,
+    marginTop: 6,
   },
   categoryLabelSelected: {
     color: '#FFFFFF',

@@ -53,7 +53,7 @@ export function PecsCommunicationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.container}>
         {/* Top Header: Home, Trash, Speaker */}
         <PecsHeader
