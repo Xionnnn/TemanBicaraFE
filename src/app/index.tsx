@@ -6,7 +6,7 @@ import { ApiError, authApi } from '../auth/api';
 import { Action, AuthForm, Field, Message, styles } from '../components/AuthForm';
 
 export default function LoginScreen() {
-  const { controller, snapshot, online, setVerification } = useAuth();
+  const { controller, snapshot, online, setVerification, setPasswordResetGrant } = useAuth();
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -39,6 +39,10 @@ export default function LoginScreen() {
       editable={!busy} onSubmitEditing={() => { void submit(); }} />
     <Message>{error || (!online ? 'Masuk memerlukan koneksi internet.' : '')}</Message>
     <Action title="Masuk" busy={busy} disabled={!online} onPress={() => { void submit(); }} />
+    <Pressable accessibilityRole="link" disabled={busy} style={styles.link}
+      onPress={() => { setPasswordResetGrant(null); setPassword(''); router.push('/forgot-password'); }}>
+      <Text style={styles.linkText}>Lupa password akun? Klik disini</Text>
+    </Pressable>
     <Pressable accessibilityRole="link" disabled={busy} style={styles.link} onPress={() => router.push('/register')}>
       <Text style={styles.linkText}>Belum memiliki akun? Daftar</Text>
     </Pressable>

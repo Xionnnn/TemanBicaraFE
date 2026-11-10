@@ -18,6 +18,8 @@ function Routes() {
     <Stack.Screen name="index" />
     <Stack.Screen name="register" />
     <Stack.Screen name="verify-email" />
+    <Stack.Screen name="forgot-password" />
+    <Stack.Screen name="reset-password" />
     <Stack.Screen name="home" />
     <Stack.Screen name="pecs" />
     <Stack.Screen name="teacher-classes" />

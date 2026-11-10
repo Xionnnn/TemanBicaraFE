@@ -2,7 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type PropsWithChildren } from 'react';
 import { openUserDatabase } from '../database/database';
-import { ApiError, authApi, type Verification } from './api';
+import { ApiError, authApi, type Verification, type PasswordResetGrant } from './api';
 import { SessionController } from './session';
 import { sessionStorage } from './storage';
 
@@ -16,12 +16,15 @@ const AuthContext = createContext<{
   online: boolean;
   verification: Verification | null;
   setVerification: (verification: Verification | null) => void;
+  passwordResetGrant: PasswordResetGrant | null;
+  setPasswordResetGrant: (grant: PasswordResetGrant | null) => void;
 } | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [online, setOnline] = useState(false);
   const [verification, setVerification] = useState<Verification | null>(null);
+  const [passwordResetGrant, setPasswordResetGrant] = useState<PasswordResetGrant | null>(null);
   const connecting = useRef(false);
 
   useEffect(() => {
@@ -53,7 +56,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     void controller.reconnect().catch(() => undefined).finally(() => { connecting.current = false; });
   }, [online, snapshot.phase]);
 
-  return <AuthContext.Provider value={{ controller, snapshot, online, verification, setVerification }}>
+  return <AuthContext.Provider value={{ controller, snapshot, online, verification, setVerification,
+    passwordResetGrant, setPasswordResetGrant }}>
     {children}
   </AuthContext.Provider>;
 }

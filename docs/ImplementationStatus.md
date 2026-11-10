@@ -1,5 +1,10 @@
 # Implementation Status
 
+November 10, 2026 addition: [password recovery](PasswordRecovery.md) now has frontend
+screens and separate API challenge storage. It requires the backend's additive
+`002-password-recovery.sql` migration; device and real-mail verification are separate
+from automated checks. The older feature snapshot below is unchanged.
+
 Authentication and entry inspected October 29, 2026; schema alignment dates from
 October 27, 2026. This is a dated snapshot supporting [AGENTS.md](../AGENTS.md).
 Reinspect relevant files before relying on it. These gaps are context, not an

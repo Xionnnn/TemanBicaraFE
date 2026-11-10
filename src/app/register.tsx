@@ -23,7 +23,7 @@ export default function RegisterScreen() {
     if (submitting.current) return;
     if (!role) { setError('Pilih role Guru atau Siswa.'); return; }
     if (!/^[A-Za-z0-9_]{3,32}$/.test(username.trim())) { setError('Username harus 3–32 huruf, angka, atau garis bawah.'); return; }
-    if (password.length < 15 || password.length > 128) { setError('Password harus 15–128 karakter. Anda dapat menggunakan frasa.'); return; }
+    if (password.length < 11 || password.length > 128) { setError('Password harus 15–128 karakter. Anda dapat menggunakan frasa.'); return; }
     if (password !== confirmPassword) { setError('Konfirmasi password tidak sama.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254) { setError('Masukkan alamat email yang valid.'); return; }
     submitting.current = true;
