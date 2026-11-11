@@ -44,9 +44,8 @@ flow. Codes expire in 10 minutes, allow five attempts, and have a 60-second rese
 cooldown. Reset grants expire in 10 minutes and are single-use. A successful reset
 invalidates previous server credentials, while preserving local offline data.
 
-New-password validation matches the current registration testing policy:
-1 to 128 characters, not whitespace-only, with matching confirmation. Existing
-registration validation was not changed by this feature.
+New-password validation matches registration: 8 to 128 characters, not
+whitespace-only, with matching confirmation.
 
 ## Verification limits
 

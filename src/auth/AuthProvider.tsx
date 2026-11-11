@@ -1,17 +1,17 @@
 import NetInfo from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type PropsWithChildren } from 'react';
-import { openUserDatabase } from '../database/database';
+import { openUserDatabase, type UserDatabase } from '../database/database';
 import { ApiError, authApi, type Verification, type PasswordResetGrant } from './api';
 import { SessionController } from './session';
 import { sessionStorage } from './storage';
 
-const controller = new SessionController({ ...sessionStorage, open: openUserDatabase,
+const controller = new SessionController<UserDatabase>({ ...sessionStorage, open: openUserDatabase,
   revoke: authApi.revoke, me: authApi.me,
   isUnauthorized: (error) => error instanceof ApiError && error.status === 401 });
 
 const AuthContext = createContext<{
-  controller: SessionController;
+  controller: SessionController<UserDatabase>;
   snapshot: ReturnType<SessionController['getSnapshot']>;
   online: boolean;
   verification: Verification | null;

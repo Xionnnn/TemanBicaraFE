@@ -5,6 +5,16 @@ screens and separate API challenge storage. It requires the backend's additive
 `002-password-recovery.sql` migration; device and real-mail verification are separate
 from automated checks. The older feature snapshot below is unchanged.
 
+November 11, 2026 addition: `/catalog-settings` (Pengaturan Katalog), for signed-in
+Student accounts, reads dictionaries and saved words from the account's SQLite database.
+The five PECS mock categories are seeded as interim starter dictionaries; their mock
+cards are display-only dummy data. The word `+` opens a form that picks a library
+image, copies it into the account's `custom-images` folder, and saves the asset first
+in the selected dictionary, or links an already saved word. Dictionary creation, editing,
+deletion, label reset, builtin image files (`assets/pecs`), and synchronization are not
+implemented. The PECS communication screen still uses only mock data. Native picker,
+file persistence, and restart behavior need Android/iOS verification.
+
 Authentication and entry inspected October 29, 2026; schema alignment dates from
 October 27, 2026. This is a dated snapshot supporting [AGENTS.md](../AGENTS.md).
 Reinspect relevant files before relying on it. These gaps are context, not an

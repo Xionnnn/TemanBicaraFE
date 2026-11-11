@@ -24,7 +24,7 @@ export default function ResetPasswordScreen() {
   async function submit() {
     if (submitting.current || !passwordResetGrant) return;
     if (passwordResetGrant.expiresAt <= Date.now()) { setError('Izin ganti password kedaluwarsa. Minta kode baru.'); return; }
-    if (!password.trim() || password.length > 128) { setError('Password harus 1–128 karakter dan tidak boleh hanya spasi.'); return; }
+    if (!password.trim() || password.length < 8 || password.length > 128) { setError('Password harus 8–128 karakter dan tidak boleh hanya spasi.'); return; }
     if (password !== confirmPassword) { setError('Konfirmasi password tidak sama.'); return; }
     submitting.current = true; setBusy(true); setError('');
     try {

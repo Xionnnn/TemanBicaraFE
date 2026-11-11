@@ -7,10 +7,10 @@ export type SessionSnapshot = {
   onlineAccess: 'unknown' | 'allowed' | 'blocked';
 };
 export type CloseableDatabase = { database: { closeAsync(): Promise<void> } };
-type Dependencies = {
+type Dependencies<TStorage> = {
   load(): Promise<SessionJournal>;
   save(journal: SessionJournal): Promise<void>;
-  open(id: string): Promise<CloseableDatabase>;
+  open(id: string): Promise<TStorage>;
   revoke(credential: string): Promise<void>;
   me(credential: string): Promise<Account>;
   isUnauthorized(error: unknown): boolean;
@@ -26,16 +26,24 @@ export function isStoredSession(value: unknown): value is StoredSession {
     (session.account.role === 'Teacher' || session.account.role === 'Student');
 }
 
-export class SessionController {
-  private deps: Dependencies;
+export class AccountChangedError extends Error {
+  constructor() {
+    super('The active account changed.');
+    this.name = 'AccountChangedError';
+  }
+}
+
+export class SessionController<TStorage extends CloseableDatabase = CloseableDatabase> {
+  private deps: Dependencies<TStorage>;
   private journal: SessionJournal = { active: null, pendingRevocations: [] };
-  private database: CloseableDatabase | null = null;
+  private database: TStorage | null = null;
+  private accountWork = new Set<Promise<void>>();
   private work: Promise<unknown> = Promise.resolve();
   private generation = 0;
   private listeners = new Set<() => void>();
   private snapshot: SessionSnapshot = { phase: 'loading', account: null, onlineAccess: 'unknown' };
 
-  constructor(deps: Dependencies) { this.deps = deps; }
+  constructor(deps: Dependencies<TStorage>) { this.deps = deps; }
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -54,7 +62,24 @@ export class SessionController {
     await this.deps.save(journal);
     this.journal = journal;
   }
+  /**
+   * Runs work on the signed-in account's open storage. Rejects with
+   * AccountChangedError unless `accountId` is still the active account.
+   * Logout and account switching wait for started work before closing.
+   */
+  withAccount = <T>(accountId: string, work: (storage: TStorage) => Promise<T>): Promise<T> => {
+    const storage = this.database;
+    if (this.snapshot.phase !== 'signedIn' || this.snapshot.account?.id !== accountId || !storage)
+      return Promise.reject(new AccountChangedError());
+    const result = Promise.resolve().then(() => work(storage));
+    const settled = result.then(() => undefined, () => undefined);
+    this.accountWork.add(settled);
+    void settled.then(() => { this.accountWork.delete(settled); });
+    return result;
+  };
+
   private async close() {
+    while (this.accountWork.size) await Promise.allSettled([...this.accountWork]);
     if (this.database) {
       await this.database.database.closeAsync();
       this.database = null;

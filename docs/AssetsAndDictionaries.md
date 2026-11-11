@@ -32,14 +32,33 @@ Read [storage rules](sqlite.md) before changing image persistence and
 - Removing a membership is distinct from deleting an asset.
 - Saved multi-card sentence templates remain excluded from scope.
 
+## Decisions confirmed November 11, 2026
+
+These came with custom word creation on the Pengaturan Katalog page:
+
+- A custom asset stores its trimmed label in `asset_name` (the card label) and
+  empty text in `default_name`, meaning it has no original builtin name.
+- A new word goes into the selected dictionary at `display_order` 0; the other
+  cards in that dictionary move down one place in the same transaction.
+- A word may appear only once per dictionary (trimmed, letter case ignored,
+  dummy cards shown there included). The same word may exist in other dictionaries.
+- Typing a word that is already saved offers the saved asset. Choosing it links
+  that asset into the dictionary instead of creating a second one.
+- Interim starter dictionaries: the five PECS mock categories are saved as real
+  dictionaries in each account database on the first catalog load, while that
+  account has no dictionaries. A future deletion feature must stop them from
+  being added again after every dictionary is deleted. Their mock picture cards
+  remain display-only dummy data.
+
 ## Unresolved decisions
 
 Discuss these before treating an interpretation as settled:
 
-- The exact role of `asset_name` as the editable display label.
+- The editable role of `asset_name` for builtin assets.
 - Reset semantics for custom assets.
 - Image retention in history after editing or deleting a custom image.
-- How builtin categories coexist with user-created dictionaries.
+- How builtin categories coexist with user-created dictionaries beyond the
+  interim starter dictionaries.
 
 ## Schema transition
 
