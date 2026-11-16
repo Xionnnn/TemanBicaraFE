@@ -82,6 +82,13 @@ await local.database.closeAsync();
   only checks JSON validity. Follow [activity rules](ActivityAndPlaybackRules.md).
 - Store relative custom-image references; resolve bundled images through the
   catalog and `source_type`. See [asset rules](AssetsAndDictionaries.md).
+  A custom asset's `path` is `custom-images/<asset-id>.<ext>`, relative to the
+  profile directory. The picked file is copied there before the database
+  transaction; if the transaction fails, the copy is deleted unless an asset row
+  uses it. Never store the picker's temporary cache URI.
+- Account work (catalog reads and saves) runs through `SessionController.withAccount`,
+  which rejects work for an account that is no longer active. Logout and account
+  switching wait for started work before closing the connection.
 - Update storage documentation and schema tests whenever storage behavior changes.
 
 ## Current schema
@@ -108,8 +115,11 @@ their earlier structure. A later upgrade requires a versioned migration.
 
 Foreign keys prevent deleting referenced parents by default; no cascading history
 deletion is added. Image/history retention and deletion workflows remain open.
-The implemented Hot DB has no event-level `asset_path`. Builtin catalog seeding
-and cloud image uploads are not implemented.
+The implemented Hot DB has no event-level `asset_path`. Builtin asset seeding
+and cloud image uploads are not implemented. Interim starter dictionaries are
+seeded on the first catalog load (see [asset rules](AssetsAndDictionaries.md)).
+The catalog refuses a database that still has the older version 1 structure
+instead of writing to it; that upgrade still needs a versioned migration.
 
 Resolve the mapping of legacy `asset_name`, `label`, and `label_override` and the
 color for existing dictionaries before implementing a migration from the earlier schema.

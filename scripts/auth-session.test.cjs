@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { SessionController, isStoredSession } = require('../src/auth/session.ts');
+const { AccountChangedError, SessionController, isStoredSession } = require('../src/auth/session.ts');
 
 const a = { credential: 'credential-a', account: { id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', username: 'A', role: 'Student' } };
 const b = { credential: 'credential-b', account: { id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', username: 'B', role: 'Teacher' } };
@@ -135,4 +135,44 @@ test('already revoked credentials leave the queue and invalid identity data is r
   assert.deepEqual(f.saved().pendingRevocations, []);
   assert.equal(isStoredSession({ ...a, account: { ...a.account, id: '../other-profile' } }), false);
   assert.equal(isStoredSession({ ...a, account: { ...a.account, role: 'Admin' } }), false);
+});
+
+test('account work runs only for the signed-in account', async () => {
+  const f = fixture({ active: a, pendingRevocations: [] });
+  const controller = f.create();
+  await assert.rejects(controller.withAccount(a.account.id, async () => 'early'), AccountChangedError);
+  await controller.restore();
+  assert.equal(await controller.withAccount(a.account.id, async (storage) => typeof storage.database.closeAsync), 'function');
+  await assert.rejects(controller.withAccount(b.account.id, async () => 'other'), AccountChangedError);
+  await controller.logout();
+  await assert.rejects(controller.withAccount(a.account.id, async () => 'late'), AccountChangedError);
+});
+
+test('logout and account switching wait for started account work before closing', async () => {
+  const f = fixture({ active: a, pendingRevocations: [] });
+  const controller = f.create();
+  await controller.restore();
+
+  const save = deferred();
+  const work = controller.withAccount(a.account.id, () => save.promise);
+  const logout = controller.logout();
+  await assert.rejects(controller.withAccount(a.account.id, async () => 'during logout'), AccountChangedError);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(f.closed, [], 'the database stays open while work is running');
+  save.resolve('saved');
+  assert.equal(await work, 'saved');
+  await logout;
+  assert.deepEqual(f.closed, [a.account.id]);
+
+  await controller.signIn(async () => a);
+  const second = deferred();
+  const secondWork = controller.withAccount(a.account.id, () => second.promise);
+  const switching = controller.signIn(async () => b);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(f.closed, [a.account.id]);
+  second.resolve('done');
+  await secondWork;
+  await switching;
+  assert.deepEqual(f.closed, [a.account.id, a.account.id]);
+  assert.equal(controller.getSnapshot().account.id, b.account.id);
 });

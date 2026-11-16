@@ -1,14 +1,21 @@
 import type { Account, StoredSession } from './session';
 
 export type Verification = { verificationTicket: string; email: string; resendAfter: number; notice?: string };
+export type PasswordRecovery = { recoveryTicket: string; email: string; resendAfter: number };
+export type PasswordResetGrant = { resetToken: string; expiresAt: number };
 export class ApiError extends Error {
   status: number;
   code: string;
   verification?: Verification;
-  constructor(status: number, body: { code?: string; message?: string } & Partial<Verification>) {
+  recovery?: PasswordRecovery;
+  resendAfter?: number;
+  constructor(status: number, body: { code?: string; message?: string } & Partial<Verification & PasswordRecovery>) {
     super(body.message ?? 'Layanan belum tersedia. Coba lagi nanti.');
     this.status = status;
     this.code = body.code ?? 'service_unavailable';
+    this.resendAfter = body.resendAfter;
+    if (body.recoveryTicket && body.email)
+      this.recovery = { recoveryTicket: body.recoveryTicket, email: body.email, resendAfter: body.resendAfter ?? 0 };
     if (body.verificationTicket && body.email)
       this.verification = { verificationTicket: body.verificationTicket, email: body.email, resendAfter: body.resendAfter ?? 0 };
   }
@@ -54,4 +61,9 @@ export const authApi = {
   login: (username: string, password: string) => request<StoredSession>('login', { username, password }),
   me: (credential: string) => request<Account>('me', undefined, credential, 'GET'),
   revoke: (credential: string) => request<void>('logout', undefined, credential),
+  forgotPassword: (email: string) => request<PasswordRecovery>('forgot-password', { email }),
+  verifyPasswordReset: (recoveryTicket: string, code: string) =>
+    request<{ resetToken: string; expiresIn: number }>('verify-password-reset', { recoveryTicket, code }),
+  resetPassword: (resetToken: string, password: string, confirmPassword: string) =>
+    request<void>('reset-password', { resetToken, password, confirmPassword }),
 };

@@ -24,7 +24,15 @@
     "plugins": [
       "expo-sqlite",
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TemanBicara memakai foto yang Anda pilih sebagai gambar kata.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

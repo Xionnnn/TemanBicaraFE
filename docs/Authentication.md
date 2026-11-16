@@ -1,5 +1,9 @@
 # Authentication implementation
 
+Password recovery was added November 10, 2026; see [PasswordRecovery.md](PasswordRecovery.md)
+for the current recovery flow, API dependency, and database migration. The original
+authentication snapshot below retains its October 29 scope and verification history.
+
 Implemented October 29, 2026 from the approved registration/login plan. Email verification
 occurs once at registration; it is not an extra factor at subsequent logins. Both roles
 can register publicly. A verified email does not establish school affiliation.
