@@ -46,7 +46,7 @@ export type WordRequest =
     image: PickedImage | null;
   }
   | {
-    // Links an existing asset into the kamus instead of creating one.
+    // Adds a saved asset to the kamus by its own ID; no asset row or image file is created.
     kind: 'existing';
     assetId: string;
     dictionaryId: string;

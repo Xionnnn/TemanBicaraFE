@@ -52,20 +52,33 @@ export function findWordInDictionary(
 }
 
 /**
- * Saved assets that are not in this kamus yet and contain the typed text.
- * An exact match comes first. Empty text lists every such asset.
+ * Saved assets whose word is not in this kamus yet and contains the typed text.
+ * Assets with the same name are all listed. An exact match comes first; empty text lists all.
  */
 export function findWordSuggestions(
   assets: readonly CatalogAsset[],
   cards: readonly CatalogAsset[],
   typed: string,
 ): CatalogAsset[] {
-  const inDictionary = new Set(cards.map((card) => card.id));
+  // By word, not ID: a copy of "Makan" here has a new ID but still blocks another "Makan".
+  const usedWords = new Set(cards.map((card) => wordKey(card.name)));
   const key = wordKey(typed);
   return assets
-    .filter((asset) => !inDictionary.has(asset.id) && wordKey(asset.name).includes(key))
+    .filter((asset) => !usedWords.has(wordKey(asset.name)) && wordKey(asset.name).includes(key))
     .sort((a, b) => Number(wordKey(b.name) === key) - Number(wordKey(a.name) === key)
       || a.name.localeCompare(b.name));
+}
+
+/** Names of the kamus that hold each saved asset, in tab order. Dummy cards are skipped. */
+export function dictionaryNamesByAsset(catalog: Catalog): Map<string, string[]> {
+  const names = new Map<string, string[]>();
+  for (const dictionary of catalog.dictionaries) {
+    for (const card of catalog.assetsByDictionary[dictionary.id] ?? []) {
+      if (card.dummy) continue;
+      names.set(card.id, [...(names.get(card.id) ?? []), dictionary.name]);
+    }
+  }
+  return names;
 }
 
 // ---- Image paths ------------------------------------------------------------
@@ -288,9 +301,10 @@ async function createWord(
 
   // The path uses the new asset ID, so it cannot belong to another asset.
   const path = customImagePath(request.assetId, request.image.extension);
-  await files.copyIn(request.image.uri, path);
   try {
+    await files.copyIn(request.image.uri, path);
     await db.withExclusiveTransactionAsync(async (txn) => {
+      // Checked again here: another save may have added the word since the first check.
       await assertWordFree(txn, starter, request.dictionaryId, label);
       const timestamp = now();
       await txn.runAsync(
@@ -315,6 +329,7 @@ async function linkExistingWord(
 ): Promise<{ label: string }> {
   let label = '';
   await db.withExclusiveTransactionAsync(async (txn) => {
+    // Looked up in this account's database only, so another account's ID is not found.
     const asset = await txn.getFirstAsync<{ asset_name: string }>(
       'SELECT asset_name FROM assets WHERE id = ?', request.assetId,
     );
@@ -328,8 +343,8 @@ async function linkExistingWord(
 }
 
 /**
- * Saves a new custom word, or links an existing one, as the first card of a kamus.
- * A new word's image is copied first; if the database write fails, that copy is removed.
+ * Puts a word first in a kamus: a saved asset gets only a new membership, while a
+ * new word is stored as a custom asset with its picked image copied in first.
  */
 export function addWordToDictionary(
   db: SQLiteDatabase,

@@ -10,7 +10,9 @@ Student accounts, reads dictionaries and saved words from the account's SQLite d
 The five PECS mock categories are seeded as interim starter dictionaries; their mock
 cards are display-only dummy data. The word `+` opens a form that picks a library
 image, copies it into the account's `custom-images` folder, and saves the asset first
-in the selected dictionary, or links an already saved word. Dictionary creation, editing,
+in the selected dictionary. Choosing an already saved word, unchanged, links that same
+asset instead; editing its name returns the form to a new word (November 16 rules in
+[assets and dictionaries](AssetsAndDictionaries.md)). Dictionary creation, editing,
 deletion, label reset, builtin image files (`assets/pecs`), and synchronization are not
 implemented. The PECS communication screen still uses only mock data. Native picker,
 file persistence, and restart behavior need Android/iOS verification.

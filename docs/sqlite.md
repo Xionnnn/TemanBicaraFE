@@ -84,8 +84,9 @@ await local.database.closeAsync();
   catalog and `source_type`. See [asset rules](AssetsAndDictionaries.md).
   A custom asset's `path` is `custom-images/<asset-id>.<ext>`, relative to the
   profile directory. The picked file is copied there before the database
-  transaction; if the transaction fails, the copy is deleted unless an asset row
-  uses it. Never store the picker's temporary cache URI.
+  transaction; if the copy or transaction fails, the copy is deleted unless an
+  asset row uses it. Adding an already saved asset to another dictionary copies no
+  file. Never store the picker's temporary cache URI.
 - Account work (catalog reads and saves) runs through `SessionController.withAccount`,
   which rejects work for an account that is no longer active. Logout and account
   switching wait for started work before closing the connection.

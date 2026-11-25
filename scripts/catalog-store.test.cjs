@@ -6,9 +6,12 @@ const { DatabaseSync } = require('node:sqlite');
 const { test } = require('node:test');
 const { INITIAL_SCHEMA } = require('../src/database/schema.ts');
 const {
-  CatalogError, addWordToDictionary, findWordInDictionary, findWordSuggestions,
+  CatalogError, addWordToDictionary, dictionaryNamesByAsset, findWordInDictionary, findWordSuggestions,
   imageExtension, loadCatalog,
 } = require('../src/catalog/catalogStore.ts');
+const {
+  EMPTY_WORD_FORM, hasPicture, isImageLocked, previewUri, wordFormReducer, wordRequest,
+} = require('../src/catalog/wordForm.ts');
 
 const KAMUS_A = 'a0806ad0-8270-479b-8e17-59a1c94e8109';
 const KAMUS_B = 'a2292faf-d036-4133-aea8-25fa2044ae5b';
@@ -73,7 +76,12 @@ function fakeFiles() {
 const load = (db) => loadCatalog(db, starter, (p) => `file:///profile/${p}`, now);
 const newWord = (assetId, label, dictionaryId = KAMUS_A, image = picked) =>
   ({ kind: 'new', assetId, dictionaryId, label, image });
+const existingWord = (assetId, dictionaryId = KAMUS_B) => ({ kind: 'existing', assetId, dictionaryId });
 const names = (catalog, id) => catalog.assetsByDictionary[id].map((asset) => asset.name);
+const count = (sqlite, table) => sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
+const links = (sqlite, dictionaryId) => sqlite.prepare(
+  'SELECT assetsid, display_order FROM assets_dictionaries WHERE dictionariesid = ? ORDER BY display_order',
+).all(dictionaryId).map((link) => [link.assetsid, link.display_order]);
 
 test('starter kamus are saved once per account database', async (t) => {
   const sqlite = openSqlite(t);
@@ -145,23 +153,140 @@ test('the same word cannot appear twice in one kamus, but may in another', async
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS count FROM assets').get().count, 2);
 });
 
-test('linking an existing word adds no asset and puts it first', async (t) => {
+test('saving a selected saved word adds only a membership, first in the kamus', async (t) => {
   const sqlite = openSqlite(t);
   const db = adapt(sqlite);
   const files = fakeFiles();
   await load(db);
   await addWordToDictionary(db, files, starter, newWord(ID_1, 'Minum', KAMUS_A), now);
   await addWordToDictionary(db, files, starter, newWord(ID_2, 'Main', KAMUS_B), now);
-  const result = await addWordToDictionary(db, files, starter,
-    { kind: 'existing', assetId: ID_1, dictionaryId: KAMUS_B }, now);
+  await addWordToDictionary(db, files, starter, newWord(ID_3, 'Tidur', KAMUS_A), now);
+  const sourceBefore = sqlite.prepare('SELECT * FROM assets WHERE id = ?').get(ID_1);
+  const kamusABefore = links(sqlite, KAMUS_A);
+  const filesBefore = new Map(files.stored);
+
+  const result = await addWordToDictionary(db, files, starter, existingWord(ID_1), now);
   assert.deepEqual(result, { label: 'Minum' });
-  assert.equal(sqlite.prepare('SELECT COUNT(*) AS count FROM assets').get().count, 2);
-  assert.equal(files.stored.size, 2);
-  assert.deepEqual(names(await load(db), KAMUS_B), ['Minum', 'Main']);
+
+  assert.equal(count(sqlite, 'assets'), 3, 'no asset row added');
+  assert.deepEqual(files.stored, filesBefore, 'no image copied or removed');
+  assert.deepEqual(links(sqlite, KAMUS_B), [[ID_1, 0], [ID_2, 1]], 'same asset ID, others shifted');
+  assert.deepEqual(links(sqlite, KAMUS_A), kamusABefore, 'other kamus ordering unchanged');
+  assert.deepEqual(sqlite.prepare('SELECT * FROM assets WHERE id = ?').get(ID_1), sourceBefore);
+
+  const catalog = await load(db);
+  assert.deepEqual(names(catalog, KAMUS_B), ['Minum', 'Main']);
+  const kamusNames = dictionaryNamesByAsset(catalog);
+  assert.deepEqual(kamusNames.get(ID_1), ['Kebutuhan', 'Aktivitas']);
+  assert.equal(kamusNames.has('card-makan'), false, 'dummy cards are not saved assets');
+});
+
+test('a selected saved word is rejected when the kamus already shows that word', async (t) => {
+  const sqlite = openSqlite(t);
+  const db = adapt(sqlite);
+  const files = fakeFiles();
+  await load(db);
+  await addWordToDictionary(db, files, starter, newWord(ID_1, 'Makan Siang', KAMUS_B), now);
+  // Another kamus may hold the same word as a separate asset.
+  await addWordToDictionary(db, files, starter, newWord(ID_2, ' makan siang ', KAMUS_A), now);
+  await assert.rejects(addWordToDictionary(db, files, starter, existingWord(ID_2, KAMUS_B), now),
+    (error) => error.code === 'duplicate_word');
+  await assert.rejects(addWordToDictionary(db, files, starter, existingWord(ID_1, KAMUS_B), now),
+    (error) => error.code === 'duplicate_word', 'an asset already in this kamus');
+
+  // A dummy card counts too: kamus A shows a dummy "Makan".
+  await addWordToDictionary(db, files, starter, newWord(ID_3, 'Makan', KAMUS_B), now);
+  await assert.rejects(addWordToDictionary(db, files, starter, existingWord(ID_3, KAMUS_A), now),
+    (error) => error.code === 'duplicate_word');
+
+  assert.deepEqual(links(sqlite, KAMUS_A), [[ID_2, 0]]);
+  assert.deepEqual(links(sqlite, KAMUS_B), [[ID_3, 0], [ID_1, 1]]);
   await assert.rejects(addWordToDictionary(db, files, starter,
-    { kind: 'existing', assetId: ID_1, dictionaryId: KAMUS_B }, now), (error) => error.code === 'duplicate_word');
-  await assert.rejects(addWordToDictionary(db, files, starter,
-    { kind: 'existing', assetId: ID_3, dictionaryId: KAMUS_B }, now), (error) => error.code === 'missing_asset');
+    existingWord('44444444-4444-4444-8444-444444444444'), now), (error) => error.code === 'missing_asset');
+});
+
+test('a failed membership save changes nothing and can be retried', async (t) => {
+  const sqlite = openSqlite(t);
+  let failLinks = false;
+  const db = adapt(sqlite, (sql) => failLinks && sql.startsWith('INSERT INTO assets_dictionaries'));
+  const files = fakeFiles();
+  await load(db);
+  await addWordToDictionary(db, files, starter, newWord(ID_1, 'Minum', KAMUS_A), now);
+  await addWordToDictionary(db, files, starter, newWord(ID_2, 'Main', KAMUS_B), now);
+
+  failLinks = true;
+  await assert.rejects(addWordToDictionary(db, files, starter, existingWord(ID_1), now), /simulated/);
+  assert.deepEqual(links(sqlite, KAMUS_B), [[ID_2, 0]], 'the order shift was rolled back');
+  assert.equal(files.stored.size, 2, 'source image kept');
+
+  failLinks = false;
+  await addWordToDictionary(db, files, starter, existingWord(ID_1), now);
+  assert.deepEqual(links(sqlite, KAMUS_B), [[ID_1, 0], [ID_2, 1]]);
+  assert.equal(count(sqlite, 'assets'), 2);
+});
+
+test('a saved word from another account cannot be added', async (t) => {
+  const sqliteA = openSqlite(t);
+  const sqliteB = openSqlite(t);
+  const filesA = fakeFiles();
+  const filesB = fakeFiles();
+  await load(adapt(sqliteA));
+  await load(adapt(sqliteB));
+  await addWordToDictionary(adapt(sqliteA), filesA, starter, newWord(ID_1, 'Minum', KAMUS_A), now);
+
+  await assert.rejects(addWordToDictionary(adapt(sqliteB), filesB, starter, existingWord(ID_1), now),
+    (error) => error.code === 'missing_asset');
+  assert.equal(count(sqliteB, 'assets_dictionaries'), 0);
+  assert.equal(filesB.stored.size, 0);
+  assert.deepEqual(links(sqliteA, KAMUS_B), []);
+});
+
+test('form: choosing a saved word fills it and locks the picture', () => {
+  const minum = { id: ID_1, name: 'Minum', imageUri: 'file:///profile/custom-images/1.jpg' };
+  const main = { id: ID_2, name: 'Main', imageUri: 'file:///profile/custom-images/2.jpg' };
+  let form = wordFormReducer(EMPTY_WORD_FORM, { type: 'pickImage', image: picked });
+  form = wordFormReducer(form, { type: 'select', asset: minum });
+  assert.deepEqual(form, { label: 'Minum', image: null, selected: minum });
+  assert.equal(isImageLocked(form), true);
+  assert.equal(previewUri(form), minum.imageUri);
+  assert.equal(wordFormReducer(form, { type: 'pickImage', image: picked }), form, 'picker ignored');
+  assert.deepEqual(wordRequest(form, ID_3, KAMUS_B), { kind: 'existing', assetId: ID_1, dictionaryId: KAMUS_B });
+
+  form = wordFormReducer(form, { type: 'select', asset: main });
+  assert.deepEqual(form, { label: 'Main', image: null, selected: main });
+  assert.equal(isImageLocked(form), true);
+  assert.equal(previewUri(form), main.imageUri);
+});
+
+test('form: editing or clearing the name returns to a new word', () => {
+  const minum = { id: ID_1, name: 'Minum', imageUri: 'file:///profile/custom-images/1.jpg' };
+  const selected = wordFormReducer(EMPTY_WORD_FORM, { type: 'select', asset: minum });
+
+  let form = wordFormReducer(selected, { type: 'editLabel', label: 'Minu' });
+  assert.deepEqual(form, { label: 'Minu', image: null, selected: null });
+  assert.equal(isImageLocked(form), false);
+  assert.equal(previewUri(form), undefined);
+  assert.equal(hasPicture(form), false);
+
+  form = wordFormReducer(form, { type: 'editLabel', label: 'Minum' });
+  assert.equal(form.selected, null, 'typing the old name again does not select it');
+  assert.equal(previewUri(form), undefined);
+
+  assert.deepEqual(wordFormReducer(selected, { type: 'editLabel', label: '' }),
+    { label: '', image: null, selected: null });
+
+  form = wordFormReducer(form, { type: 'pickImage', image: picked });
+  assert.deepEqual(wordRequest(form, ID_3, KAMUS_B),
+    { kind: 'new', assetId: ID_3, dictionaryId: KAMUS_B, label: 'Minum', image: picked });
+  assert.equal(minum.imageUri, 'file:///profile/custom-images/1.jpg', 'source asset object untouched');
+});
+
+test('form: a manually picked image survives name edits', () => {
+  let form = wordFormReducer(EMPTY_WORD_FORM, { type: 'pickImage', image: picked });
+  form = wordFormReducer(form, { type: 'editLabel', label: 'Jus' });
+  form = wordFormReducer(form, { type: 'editLabel', label: '' });
+  assert.deepEqual(form, { label: '', image: picked, selected: null });
+  assert.equal(previewUri(form), picked.uri);
 });
 
 test('a failed database write removes the copied image, and a retry with the same ID works', async (t) => {
@@ -232,12 +357,18 @@ test('word matching and suggestions', () => {
     { id: 'a', name: 'Minum Air', sourceType: 'custom' },
     { id: 'b', name: 'minum', sourceType: 'custom' },
     { id: 'c', name: 'Main', sourceType: 'custom' },
+    { id: 'd', name: 'Minum', sourceType: 'custom' },
   ];
   assert.equal(findWordInDictionary(saved, '  MINUM ').id, 'b');
   assert.equal(findWordInDictionary(saved, ''), undefined);
-  assert.deepEqual(findWordSuggestions(saved, [], 'minum').map((a) => a.id), ['b', 'a']);
-  assert.deepEqual(findWordSuggestions(saved, [saved[1]], 'minum').map((a) => a.id), ['a']);
-  assert.deepEqual(findWordSuggestions(saved, [], '').map((a) => a.id), ['c', 'b', 'a']);
+  assert.deepEqual(findWordSuggestions(saved, [], 'minum').map((a) => a.id), ['b', 'd', 'a'],
+    'assets with the same name are all listed');
+  // The kamus holds a different asset named "Minum": both saved "minum" assets are hidden.
+  const otherMinum = { id: 'x', name: ' MINUM ', sourceType: 'custom' };
+  assert.deepEqual(findWordSuggestions(saved, [otherMinum], 'minum').map((a) => a.id), ['a']);
+  assert.deepEqual(findWordSuggestions(saved, [], '').map((a) => a.id), ['c', 'b', 'd', 'a']);
+  const dummy = { id: 'card-main', name: 'Main', dummy: true };
+  assert.deepEqual(findWordSuggestions(saved, [dummy], 'ma').map((a) => a.id), []);
   assert.equal(imageExtension('file:///cache/x.JPEG'), '.jpg');
   assert.equal(imageExtension('file:///cache/x', 'image/png'), '.png');
   assert.equal(imageExtension('content://media/123'), '.jpg');
