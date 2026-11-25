@@ -1,11 +1,8 @@
-import { PlaceholderPage } from '../components/home/PlaceholderPage';
+import { useAuth } from '../auth/AuthProvider';
+import { StudentClassSettingsScreen } from '../components/classes/StudentClassSettingsScreen';
 
 export default function ClassSettingsRoute() {
-  return (
-    <PlaceholderPage
-      title="Pengaturan Kelas"
-      description="Halaman untuk konfigurasi kelas bagi siswa."
-    />
-  );
+  const { snapshot } = useAuth();
+  return <StudentClassSettingsScreen key={snapshot.account?.id ?? 'preview'} />;
 }
 

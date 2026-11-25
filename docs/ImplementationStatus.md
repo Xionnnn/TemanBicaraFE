@@ -1,5 +1,22 @@
 # Implementation Status
 
+November 25, 2026 addition: `/class-settings` now has the student's class-settings UI
+based on the supplied Figma design: a Year/Class/Detail table, a class-code dialog,
+and confirmation before removing a class from the preview list. All data is visibly
+labeled as examples and stays in component state. The code `CONTOH` adds `Kelas2`;
+empty input, other codes, and repeated joins show feedback. No classroom API,
+database, or route-access integration is included. Account changes reset the preview.
+The current development target is Android, with phone portrait and tablet landscape.
+Expo orientation is now `default` to allow rotation; existing generated Android
+projects need configuration regeneration and a rebuild to pick up that native setting.
+TypeScript, Expo lint, and the Android bundle export passed. Android Expo Go emulator
+checks covered empty/incorrect/demo codes, duplicate joins, cancel and Android Back,
+form reset, cancel/confirm leaving, the empty list, and Home navigation. The UI and
+join dialog were visually checked in phone portrait and tablet landscape (1728x1080),
+including 200% system text in landscape. Expo Doctor passed 19/20 checks; the remaining
+finding is the existing dependency-version mismatch. Physical-device verification
+and backend classroom behavior remain outside this UI preview.
+
 November 25, 2026 addition: `/usage-history` now has a responsive UI preview based
 on the supplied Figma design. It displays four labeled example sentences, placeholder
 timestamps, wrapping picture cards, and a Home button. The view includes an empty-list
@@ -17,8 +34,8 @@ and an Add Class dialog based on the supplied Figma wireframe. This is a UI prev
 example rows are visibly labeled, and adding or deleting a class changes only the
 mounted screen's state. State resets when the account changes. No classroom API,
 SQLite tables, or route authorization changes are included. History and student-list
-actions explain that those features are not available yet. `/class-settings` remains
-a placeholder; `/usage-history` has the UI preview described above. TypeScript, Expo lint, and Android/iOS bundle
+actions explain that those features are not available yet. `/class-settings` and
+`/usage-history` have the UI previews described above. TypeScript, Expo lint, and Android/iOS bundle
 exports passed. Android Expo Go emulator checks covered adding a preview class,
 empty-name validation, closing/canceling dialogs, cancel/confirm deletion, both
 unavailable-feature dialogs, the empty table, and Home navigation. The table was
