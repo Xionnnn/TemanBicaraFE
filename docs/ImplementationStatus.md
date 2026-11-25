@@ -1,5 +1,19 @@
 # Implementation Status
 
+November 25, 2026 addition: `/teacher-classes` now renders the teacher's class table
+and an Add Class dialog based on the supplied Figma wireframe. This is a UI preview:
+example rows are visibly labeled, and adding or deleting a class changes only the
+mounted screen's state. State resets when the account changes. No classroom API,
+SQLite tables, or route authorization changes are included. History and student-list
+actions explain that those features are not available yet. `/usage-history` and
+`/class-settings` remain placeholders. TypeScript, Expo lint, and Android/iOS bundle
+exports passed. Android Expo Go emulator checks covered adding a preview class,
+empty-name validation, closing/canceling dialogs, cancel/confirm deletion, both
+unavailable-feature dialogs, the empty table, and Home navigation. The table was
+visually checked at logical widths 320 and 720, and at system font scale 200%.
+Large text moves the detail actions below the class information to keep column
+labels readable. Physical Android devices and iOS interaction still need verification.
+
 November 10, 2026 addition: [password recovery](PasswordRecovery.md) now has frontend
 screens and separate API challenge storage. It requires the backend's additive
 `002-password-recovery.sql` migration; device and real-mail verification are separate

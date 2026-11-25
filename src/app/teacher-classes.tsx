@@ -1,11 +1,8 @@
-import { PlaceholderPage } from '../components/home/PlaceholderPage';
+import { useAuth } from '../auth/AuthProvider';
+import { TeacherClassesScreen } from '../components/classes/TeacherClassesScreen';
 
 export default function TeacherClassesRoute() {
-  return (
-    <PlaceholderPage
-      title="Kelas dan Siswa"
-      description="Halaman manajemen kelas, pemantauan aktivitas siswa, dan dashboard bagi guru."
-    />
-  );
+  const { snapshot } = useAuth();
+  return <TeacherClassesScreen key={snapshot.account?.id ?? 'preview'} />;
 }
 
