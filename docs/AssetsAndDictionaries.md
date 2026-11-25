@@ -42,13 +42,35 @@ These came with custom word creation on the Pengaturan Katalog page:
   cards in that dictionary move down one place in the same transaction.
 - A word may appear only once per dictionary (trimmed, letter case ignored,
   dummy cards shown there included). The same word may exist in other dictionaries.
-- Typing a word that is already saved offers the saved asset. Choosing it links
-  that asset into the dictionary instead of creating a second one.
 - Interim starter dictionaries: the five PECS mock categories are saved as real
   dictionaries in each account database on the first catalog load, while that
   account has no dictionaries. A future deletion feature must stop them from
   being added again after every dictionary is deleted. Their mock picture cards
   remain display-only dummy data.
+
+## Decisions revised November 16, 2026
+
+These follow the activity diagram "Menambahkan gambar dengan makna baru". A short-lived
+revision earlier that day, in which choosing a saved word always created a copied asset,
+is withdrawn; there is no "create copy" action.
+
+- The word list offers every saved asset whose word is not yet in the current
+  dictionary. Assets with the same name are listed separately, each with its picture
+  and the dictionaries that hold it. None is hidden or chosen for being newest.
+- Choosing an option fills the name, shows its picture and keeps that asset's ID.
+  The image selector is locked while it stays selected; the name stays editable, and
+  choosing another option replaces the selection. Nothing is saved before confirming.
+- Confirming an unchanged selection adds only a membership for that asset's existing
+  ID. No asset row or image file is created.
+- The first user edit to the name, including clearing it, drops the selection and its
+  picture from the form and unlocks the image selector, keeping the edited text. Typing
+  the original name again does not restore the selection. This clears form state only;
+  the saved asset, its file and its memberships are untouched. A manually picked image
+  is kept when the name is edited.
+- Without a selection, saving creates a new custom asset with a new UUID and its own
+  copy of the picked image, as described above.
+- The same duplicate rule applies to both paths and is checked again inside the save
+  transaction. Both insert at `display_order` 0 and shift only that dictionary's cards.
 
 ## Unresolved decisions
 

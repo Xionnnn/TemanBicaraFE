@@ -25,9 +25,16 @@ echo.
 if errorlevel 1 goto failed
 
 echo.
-echo USB forwarding is ready. Start your API and Expo as usual.
+echo USB forwarding is ready. Start your API separately.
+echo Starting Expo with IPv4 preferred...
+pushd "%~dp0.."
+if errorlevel 1 goto failed
+set "NODE_OPTIONS=%NODE_OPTIONS% --dns-result-order=ipv4first"
+call npx expo start --go --localhost --port 8081 --clear
+set "EXPO_EXIT_CODE=%ERRORLEVEL%"
+popd
 pause
-exit /b 0
+exit /b %EXPO_EXIT_CODE%
 
 :failed
 echo.
