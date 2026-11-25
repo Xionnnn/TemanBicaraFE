@@ -1,12 +1,24 @@
 # Implementation Status
 
+November 25, 2026 addition: `/usage-history` now has a responsive UI preview based
+on the supplied Figma design. It displays four labeled example sentences, placeholder
+timestamps, wrapping picture cards, and a Home button. The view includes an empty-list
+state. It does not read or write activity events: PECS logging, the event payload
+contract, and history image retention remain separate work. No account-storage,
+playback, synchronization, or route-access behavior changes are included.
+TypeScript, Expo lint, and Android/iOS bundle exports passed. Android Expo Go
+emulator checks covered the example-data label, ordered sentence labels, scrolling
+to the long sentence, and Home navigation. Screenshots were inspected at logical
+widths 320 and 720 and at system font scale 200%. The empty-list state was inspected
+in source. Physical Android devices and iOS interaction remain unverified.
+
 November 25, 2026 addition: `/teacher-classes` now renders the teacher's class table
 and an Add Class dialog based on the supplied Figma wireframe. This is a UI preview:
 example rows are visibly labeled, and adding or deleting a class changes only the
 mounted screen's state. State resets when the account changes. No classroom API,
 SQLite tables, or route authorization changes are included. History and student-list
-actions explain that those features are not available yet. `/usage-history` and
-`/class-settings` remain placeholders. TypeScript, Expo lint, and Android/iOS bundle
+actions explain that those features are not available yet. `/class-settings` remains
+a placeholder; `/usage-history` has the UI preview described above. TypeScript, Expo lint, and Android/iOS bundle
 exports passed. Android Expo Go emulator checks covered adding a preview class,
 empty-name validation, closing/canceling dialogs, cancel/confirm deletion, both
 unavailable-feature dialogs, the empty table, and Home navigation. The table was
