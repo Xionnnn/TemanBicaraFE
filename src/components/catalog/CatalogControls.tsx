@@ -1,32 +1,19 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 import { Pencil } from 'lucide-react-native';
-import { Action, styles as formStyles } from '../AuthForm';
 
 export function PencilButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      hitSlop={7}
       onPress={onPress}
-      style={({ pressed }) => [styles.pencil, pressed && styles.pressed]}
+      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+      style={({ pressed }) => [styles.pencil, focused && styles.focused, pressed && styles.pressed]}
     >
-      <Pencil size={16} color="#FFFFFF" strokeWidth={2.5} accessible={false} />
+      <Pencil size={16} color={focused ? '#111827' : '#FFFFFF'} strokeWidth={2.5} accessible={false} />
     </Pressable>
-  );
-}
-
-export function PlaceholderNotice({ message, onClose }: { message: string | null; onClose: () => void }) {
-  return (
-    <Modal visible={message !== null} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={formStyles.overlay}>
-        <View style={formStyles.modal} accessibilityViewIsModal>
-          <Text accessibilityRole="header" style={formStyles.success}>Belum tersedia</Text>
-          <Text style={formStyles.body}>{message}</Text>
-          <Action title="Tutup" onPress={onClose} />
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -35,9 +22,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     right: 4,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     backgroundColor: '#111827',
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -47,4 +34,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
+  focused: { borderColor: '#111827', backgroundColor: '#FFFFFF' },
 });

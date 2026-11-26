@@ -1,34 +1,42 @@
-import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { BackHandler, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Eye, Files, Plus, Trash2 } from 'lucide-react-native';
 import { Field } from '../AuthForm';
 import { HomeIcon } from '../pecs/PecsIcons';
 import { ClassButton, ClassDialog, ClassDialogActions } from './ClassDialog';
+import { createExampleClasses, type PreviewClass } from './previewData';
+import { TeacherStudentsView } from './TeacherStudentsView';
+import { TeacherHistoryView } from './TeacherHistoryView';
 
-type PreviewClass = { id: number; name: string; studentCount: number; year: string };
 type Dialog = { type: 'create' }
-  | { type: 'delete' | 'history' | 'students'; classroom: PreviewClass }
+  | { type: 'delete'; classroom: PreviewClass }
   | null;
 
-const EXAMPLE_CLASSES: PreviewClass[] = [
-  { id: 1, name: 'Kelas A', studentCount: 10, year: 'yyyy' },
-  { id: 2, name: 'Kelas B', studentCount: 10, year: 'yyyy' },
-  { id: 3, name: 'Kelas C', studentCount: 10, year: 'yyyy' },
-];
-
-export function TeacherClassesScreen() {
+export function TeacherClassesScreen({ onHome }: { onHome?: () => void } = {}) {
   const router = useRouter();
+  const goHome = onHome ?? (() => router.replace('/home'));
   const { width, fontScale } = useWindowDimensions();
   const isTablet = width >= 600;
   const largeText = fontScale > 1.3;
-  const [classes, setClasses] = useState(EXAMPLE_CLASSES);
+  const [classes, setClasses] = useState(createExampleClasses);
+  const [detail, setDetail] = useState<{ type: 'students' | 'history'; classId: number } | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [className, setClassName] = useState('');
   const [error, setError] = useState('');
   const [announcement, setAnnouncement] = useState('');
   const nextId = useRef(4);
+  const activeClass = classes.find((item) => item.id === detail?.classId);
+
+  useEffect(() => {
+    if (!detail) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setDetail(null);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [detail]);
 
   function closeDialog() { setDialog(null); setError(''); }
 
@@ -42,7 +50,7 @@ export function TeacherClassesScreen() {
     const name = className.trim();
     if (!name) { setError('Isi nama kelas terlebih dahulu.'); return; }
     const id = nextId.current++;
-    setClasses((current) => [...current, { id, name, studentCount: 0, year: '-' }]);
+    setClasses((current) => [...current, { id, name, students: [], year: '-' }]);
     setAnnouncement(`${name} ditambahkan ke pratinjau.`);
     closeDialog();
   }
@@ -53,12 +61,21 @@ export function TeacherClassesScreen() {
     closeDialog();
   }
 
+  if (activeClass && detail) {
+    const navigation = { classroom: activeClass, onBack: () => setDetail(null), onHome: goHome };
+    return detail.type === 'students'
+      ? <TeacherStudentsView key={`students-${activeClass.id}`} {...navigation}
+          onRemove={(id) => setClasses((current) => current.map((item) => item.id === activeClass.id
+            ? { ...item, students: item.students.filter((student) => student.id !== id) } : item))} />
+      : <TeacherHistoryView key={`history-${activeClass.id}`} {...navigation} />;
+  }
+
   return (
     <SafeAreaView style={styles.page} edges={['top', 'bottom', 'left', 'right']}>
       <ScrollView contentContainerStyle={[styles.scroll, isTablet && styles.scrollTablet]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
-          <ClassButton label="Kembali ke Beranda" onPress={() => router.replace('/home')}
+          <ClassButton label="Kembali ke Beranda" onPress={goHome}
             style={[styles.home, isTablet && styles.homeTablet]}>
             <HomeIcon size={isTablet ? 44 : 40} color="#000000" />
           </ClassButton>
@@ -91,10 +108,10 @@ export function TeacherClassesScreen() {
                 largeText && styles.stackedRow]}>
                 <View style={[styles.cells, largeText && styles.fullWidth]}>
                   <Text style={[styles.cellText, styles.nameColumn]}>{classroom.name}</Text>
-                  <Text accessibilityLabel={`${classroom.studentCount} siswa, data contoh`}
+                  <Text accessibilityLabel={`${classroom.students.length} siswa, data contoh`}
                     style={[styles.cellText, styles.countColumn, isTablet && styles.countTablet,
                       largeText && styles.countLarge]}>
-                    {classroom.studentCount}
+                    {classroom.students.length}
                   </Text>
                   <Text style={[styles.cellText, styles.yearColumn, isTablet && styles.yearTablet,
                     largeText && styles.yearLarge]}>{classroom.year}</Text>
@@ -103,11 +120,11 @@ export function TeacherClassesScreen() {
                   {largeText && <Text style={styles.detailLabel}>Detail</Text>}
                   <View style={[styles.detailColumn, styles.rowActions]}>
                     <ClassButton label={`Riwayat ${classroom.name}`}
-                      onPress={() => setDialog({ type: 'history', classroom })}>
+                      onPress={() => setDetail({ type: 'history', classId: classroom.id })}>
                       <Files size={24} color="#000000" strokeWidth={2.5} accessible={false} />
                     </ClassButton>
                     <ClassButton label={`Lihat siswa ${classroom.name}`}
-                      onPress={() => setDialog({ type: 'students', classroom })}>
+                      onPress={() => setDetail({ type: 'students', classId: classroom.id })}>
                       <Eye size={25} color="#000000" strokeWidth={2.5} accessible={false} />
                     </ClassButton>
                     <ClassButton label={`Hapus ${classroom.name}`}
@@ -147,19 +164,6 @@ export function TeacherClassesScreen() {
           onClose={closeDialog}>
           <ClassDialogActions onCancel={closeDialog} onConfirm={() => deleteClass(dialog.classroom)}
             confirmLabel={`Konfirmasi hapus ${dialog.classroom.name}`} />
-        </ClassDialog>
-      )}
-      {(dialog?.type === 'history' || dialog?.type === 'students') && (
-        <ClassDialog title={dialog.type === 'history' ? 'Riwayat Kelas dan Siswa' : 'Daftar Siswa'}
-          description={dialog.classroom.name} onClose={closeDialog}>
-          <Text style={styles.dialogNote}>
-            {dialog.type === 'history'
-              ? 'Riwayat dan grafik aktivitas kelas belum tersedia.'
-              : 'Daftar siswa dan penambahan siswa belum tersedia.'}
-          </Text>
-          <ClassButton label="Tutup" onPress={closeDialog} style={styles.closeButton}>
-            <Text style={styles.closeText}>Tutup</Text>
-          </ClassButton>
         </ClassDialog>
       )}
     </SafeAreaView>
@@ -208,6 +212,4 @@ const styles = StyleSheet.create({
   announcement: { color: '#374151', fontSize: 14, lineHeight: 20, marginTop: 8 },
   error: { color: '#9B1C1C', fontSize: 15, lineHeight: 22 },
   dialogNote: { color: '#4B5563', fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  closeButton: { backgroundColor: '#3F3F3F', minHeight: 52 },
-  closeText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 });

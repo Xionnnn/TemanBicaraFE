@@ -1,5 +1,64 @@
 # Implementation Status
 
+November 26, 2026 addition: all seven remaining Figma page/dialog designs now have
+UI in their existing catalog and teacher-class flows. Dictionary editing includes
+gallery/name/color/order drafts, a proposed-order confirmation, and a deletion
+preview. Custom and builtin image editors include name/image drafts, deletion or
+reset confirmation, and unsaved previews. These editors never write SQLite, alter
+memberships, delete files, or change activity history. Builtin reset demonstrates
+the original name/image in the draft only; unresolved storage/history semantics
+in AssetsAndDictionaries.md are not settled by this UI.
+
+The teacher class eye action opens an example student list with removal confirmation
+and an example class-code dialog. A local five-minute timer expires and can be
+renewed; `CONTOH` is explicitly a demo code with no cross-device join service.
+Student removal updates the mounted class count and history preview. The history
+action opens two labeled example charts and word-frequency tables for each student,
+including empty states. Horizontal bars retain names/values on phones; charts can
+sit side by side on wider landscape layouts. Detail views support return-to-class,
+Home, and Android Back navigation. New classes start with empty student/history data.
+All teacher preview data resets when the screen unmounts or its account key changes.
+
+The shared AppDialog retains existing dialog styling and supports scrollable forms
+with Android's native keyboard resize behavior. Catalog content now scrolls when
+the shorter landscape viewport cannot fit its grid. No dependencies, database
+schemas, backend endpoints, or route-access rules were changed for these additions.
+TypeScript, Expo lint, and the Android bundle export passed. The seven additions
+were exercised in an isolated Android Expo Go harness at phone portrait and tablet
+landscape (1728x1080), including 200% system text in landscape. Checks included
+validation, order/deletion/reset confirmations, gallery selection/cancel, preserving
+original catalog data, student removal/count updates, history tables, empty classes,
+code expiry/renewal, and return navigation. Countdown expiry was tested with a short
+duration on the same dialog; the normal five-minute countdown was inspected visually.
+No application JavaScript or Android runtime errors were observed during these
+checks. See [the verification report](UICompletionVerification.md) for detailed
+results, design reasons, and the limits of isolated-component testing.
+Additional keyboard checks passed Tab/Enter activation but exposed an unresolved
+Escape issue in Expo Go 58.0.5 and 58.0.6: the native window disappears without
+clearing editor state, leaving underlying touches blocked. Back and visible close
+controls work. A standalone debug APK build was attempted, but configuration failed
+with CXX1101 because the local NDK 27.1.12297006 lacks source.properties. The APK
+was not produced. These native verification limits remain open in the checklist;
+the full antislop delivery gate is not reported as clean.
+
+November 25, 2026 addition: the Buat Kamus action in `/catalog-settings` now opens
+the Membuat Kamus Baru dialog from the supplied Figma design. This is UI-only:
+gallery image selection, name, hex color, named color choices, validation, and
+cancel lead to an explicitly unsaved dictionary preview. The preview supports
+editing and returning to the catalog. No dictionary rows or persistent image files
+are created, and existing word creation/storage is unchanged. The dialog unmounts
+when closed or when the catalog's account key changes; late picker results are
+ignored after unmount. Dictionary image persistence and ordering remain separate
+design/integration work.
+TypeScript, Expo lint, and the Android bundle export passed. Android Expo Go checks used the actual form in an
+isolated UI preview without an authenticated account or database. Checks covered
+real gallery selection and cancellation, required fields, invalid and custom hex
+colors, named colors, preview/edit, close, Android Back, and reset on reopening.
+The form was visually inspected in phone portrait and tablet landscape (1728x1080),
+including 200% system text in landscape with scrolling to the action buttons.
+Signed-in catalog wiring was inspected in source; that account flow and physical
+Android-device behavior were not exercised.
+
 November 25, 2026 addition: `/class-settings` now has the student's class-settings UI
 based on the supplied Figma design: a Year/Class/Detail table, a class-code dialog,
 and confirmation before removing a class from the preview list. All data is visibly

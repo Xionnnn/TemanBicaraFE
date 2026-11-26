@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../auth/AuthProvider';
@@ -10,7 +10,9 @@ import type { CatalogAsset, CatalogDictionary, WordRequest } from '../../catalog
 import { Action } from '../AuthForm';
 import { HomeIcon } from '../pecs/PecsIcons';
 import { CatalogAssetGrid } from './CatalogAssetGrid';
-import { PlaceholderNotice } from './CatalogControls';
+import { CreateDictionaryModal } from './CreateDictionaryModal';
+import { EditDictionaryModal } from './EditDictionaryModal';
+import { EditAssetModal } from './EditAssetModal';
 import { CreateWordModal, type SavedWord } from './CreateWordModal';
 import { DictionaryTabBar } from './DictionaryTabBar';
 
@@ -19,13 +21,11 @@ export function CatalogSettingsScreen({ accountId }: { accountId: string }) {
   const { controller } = useAuth();
   const { state, retry, refresh } = useCatalog(accountId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [creatingDictionary, setCreatingDictionary] = useState(false);
+  const [editingDictionary, setEditingDictionary] = useState<CatalogDictionary | null>(null);
+  const [editingAsset, setEditingAsset] = useState<CatalogAsset | null>(null);
   const [creating, setCreating] = useState(false);
   const [gridRevision, setGridRevision] = useState(0);
-
-  // Edit actions are reserved for the edit task; they do nothing yet.
-  const editDictionary = (_dictionary: CatalogDictionary) => {};
-  const editAsset = (_asset: CatalogAsset) => {};
 
   const goHome = () => (router.canGoBack() ? router.back() : router.replace('/home'));
 
@@ -48,7 +48,7 @@ export function CatalogSettingsScreen({ accountId }: { accountId: string }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -62,7 +62,7 @@ export function CatalogSettingsScreen({ accountId }: { accountId: string }) {
         <Text style={styles.subtitle}>Ubah gambar dan kumpulan kamus gambar</Text>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView style={styles.body} contentContainerStyle={styles.catalogContent}>
         {state.status === 'loading' && (
           <View style={styles.center}>
             <ActivityIndicator color="#FFFFFF" />
@@ -87,15 +87,15 @@ export function CatalogSettingsScreen({ accountId }: { accountId: string }) {
               dictionaries={catalog.dictionaries}
               selectedId={selected?.id ?? null}
               onSelect={(dictionary) => setSelectedId(dictionary.id)}
-              onCreate={() => setNotice('Membuat kamus baru akan tersedia nanti.')}
-              onEdit={editDictionary}
+              onCreate={() => setCreatingDictionary(true)}
+              onEdit={setEditingDictionary}
             />
             {selected ? (
               <CatalogAssetGrid
                 key={`${selected.id}:${gridRevision}`}
                 assets={catalog.assetsByDictionary[selected.id] ?? []}
                 onCreate={() => setCreating(true)}
-                onEdit={editAsset}
+                onEdit={setEditingAsset}
               />
             ) : (
               <View style={styles.center}>
@@ -104,7 +104,7 @@ export function CatalogSettingsScreen({ accountId }: { accountId: string }) {
             )}
           </>
         )}
-      </View>
+      </ScrollView>
 
       {creating && catalog && selected && (
         <CreateWordModal
@@ -115,7 +115,14 @@ export function CatalogSettingsScreen({ accountId }: { accountId: string }) {
           onClose={() => setCreating(false)}
         />
       )}
-      <PlaceholderNotice message={notice} onClose={() => setNotice(null)} />
+      {creatingDictionary && catalog && (
+        <CreateDictionaryModal pickImage={pickLibraryImage} onClose={() => setCreatingDictionary(false)} />
+      )}
+      {editingDictionary && catalog && <EditDictionaryModal key={editingDictionary.id}
+        dictionary={editingDictionary} dictionaries={catalog.dictionaries} pickImage={pickLibraryImage}
+        onClose={() => setEditingDictionary(null)} />}
+      {editingAsset && catalog && <EditAssetModal key={editingAsset.id} asset={editingAsset}
+        pickImage={pickLibraryImage} onClose={() => setEditingAsset(null)} />}
     </SafeAreaView>
   );
 }
@@ -159,6 +166,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#3F4940',
   },
+  catalogContent: { flexGrow: 1 },
   center: {
     flex: 1,
     alignItems: 'center',
